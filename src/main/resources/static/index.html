@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mess Plate Planner</title>
+<style>
+  :root {
+    --bg: #f3f6f4; --card: #ffffff; --ink: #14312f; --muted: #5d7371;
+    --teal: #0f5c57; --turmeric: #e8a317; --line: #d5dfdc; --yes: #1f8a4c; --no: #c4452d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e1f1e; --card: #162a28; --ink: #e8f1ef; --muted: #9db5b2;
+            --teal: #3fb5ab; --line: #284340; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg);
+         color: var(--ink); min-height: 100vh; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 440px; padding: 28px 18px 40px; }
+  h1 { font-size: 1.7rem; margin: 0 0 6px; line-height: 1.2; }
+  p.sub { margin: 0 0 24px; color: var(--muted); line-height: 1.5; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  label { display: block; font-weight: 600; margin: 0 0 8px; }
+  input { width: 100%; padding: 13px; font-size: 1rem; border: 1px solid var(--line);
+          border-radius: 10px; background: var(--bg); color: var(--ink); margin-bottom: 20px; }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--turmeric); outline-offset: 2px; }
+  .meals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+  .meal { padding: 12px 4px; border: 2px solid var(--line); border-radius: 10px; background: transparent;
+          color: var(--ink); font-size: .95rem; font-weight: 600; cursor: pointer; }
+  .meal.active { border-color: var(--turmeric); background: var(--turmeric); color: #2a1d00; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice button { padding: 16px 8px; border: 0; border-radius: 10px; font-size: 1.05rem;
+                   font-weight: 700; color: #fff; cursor: pointer; }
+  .yes { background: var(--yes); } .no { background: var(--no); }
+  #msg { margin-top: 18px; min-height: 24px; font-weight: 600; }
+  #msg.error { color: var(--no); }
+  footer { margin-top: 22px; text-align: center; }
+  footer a { color: var(--teal); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Coming to the mess?</h1>
+  <p class="sub">Tell the kitchen before the meal so they cook the right amount and no food is wasted.</p>
+
+  <div class="card">
+    <label for="roll">Roll number</label>
+    <input id="roll" placeholder="e.g. 24CSD001" autocomplete="off">
+
+    <label>Which meal?</label>
+    <div class="meals" id="meals">
+      <button class="meal active" data-meal="BREAKFAST">Breakfast</button>
+      <button class="meal" data-meal="LUNCH">Lunch</button>
+      <button class="meal" data-meal="DINNER">Dinner</button>
+    </div>
+
+    <div class="choice">
+      <button class="yes" onclick="send(true)">I'm eating</button>
+      <button class="no" onclick="send(false)">I'm skipping</button>
+    </div>
+    <div id="msg" role="status"></div>
+  </div>
+
+  <footer><a href="admin.html">Mess staff dashboard</a></footer>
+</main>
+
+<script>
+  let selectedMeal = "BREAKFAST";
+
+  // Highlight the meal button the student taps
+  document.querySelectorAll(".meal").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".meal").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedMeal = btn.dataset.meal;
+    });
+  });
+
+  // Send the answer to the Java backend
+  async function send(eating) {
+    const msg = document.getElementById("msg");
+    const studentId = document.getElementById("roll").value.trim();
+    msg.className = "";
+    if (!studentId) {
+      msg.className = "error";
+      msg.textContent = "Enter your roll number first.";
+      return;
+    }
+    try {
+      const res = await fetch("/api/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId, meal: selectedMeal, eating })
+      });
+      const data = await res.json();
+      msg.className = res.ok ? "" : "error";
+      msg.textContent = data.message;
+    } catch (e) {
+      msg.className = "error";
+      msg.textContent = "Server not reachable. Check that the Java app is running.";
+    }
+  }
+</script>
+</body>
+</html>
